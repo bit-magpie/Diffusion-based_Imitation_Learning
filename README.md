@@ -18,6 +18,10 @@ pip install -r requirements.txt
 ```
 
 ### Generate dataset
+New dataset (line follow) was generated as seen in the following figure.
+
+![Line follow](dot_movement.gif "Line Follow example")
+
 Use following command to generate the dataset.
 Make sure image files are in the `datasets/line_follow/imgs`
 
