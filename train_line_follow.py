@@ -15,7 +15,7 @@ from torchvision import transforms
 from sklearn.cluster import KMeans
 from sklearn.neighbors import KernelDensity
 
-from diff_model import (
+from model import (
     Model_cnn_mlp,
     Model_Cond_Diffusion,
 )

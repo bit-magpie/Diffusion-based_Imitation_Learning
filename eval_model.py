@@ -6,7 +6,7 @@ from torchvision import transforms
 import torch
 from tqdm import tqdm
 
-from diff_model import (
+from model import (
     Model_cnn_mlp,
     Model_Cond_Diffusion,
 )
