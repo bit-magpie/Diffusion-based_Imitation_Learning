@@ -5,6 +5,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 import torch
 from tqdm import tqdm
+import pickle
 
 from model import (
     Model_cnn_mlp,
@@ -21,8 +22,8 @@ class LineFollowDataset(Dataset):
     ):
         self.DATASET_PATH = DATASET_PATH
         # just load it all into RAM
-        self.images = np.load(os.path.join(DATASET_PATH, "imgs.npy"), allow_pickle=True)
-        self.actions = np.load(os.path.join(DATASET_PATH, "pts.npy"), allow_pickle=True)
+        self.images = np.load(os.path.join(DATASET_PATH, "images.npy"), allow_pickle=True)
+        self.actions = np.load(os.path.join(DATASET_PATH, "actions.npy"), allow_pickle=True)
         self.transform = transform
         n_train = int(self.actions.shape[0] * train_prop)
         if train_or_test == "train":
@@ -32,17 +33,12 @@ class LineFollowDataset(Dataset):
         else:
             raise NotImplementedError
 
-        # normalise actions and images to range [0,1]
-        # self.actions = self.actions / 500.0
-        # self.images = self.images / 255.0
-
     def __len__(self):
         return self.actions.shape[0]
 
     def __getitem__(self, index):
         action = self.actions[index] 
-        image = self.images[int(action[0])]
-        action = action[1:]
+        image = self.images[index]
         
         if self.transform:
             image = self.transform(image)
@@ -75,7 +71,7 @@ def get_model(x_shape, y_dim):
 
 def predict(model, x_eval):
     model.eval()
-    use_kde = True
+    use_kde = False
     
     with torch.set_grad_enabled(False):
         # if extra_diffusion_step == 0:
@@ -111,32 +107,43 @@ def eval():
     torch_data_train = LineFollowDataset(
             DATASET_PATH, transform=tf, train_or_test="train", train_prop=0.90
     )
+
+    ids, sts = pickle.load(open("datasets/line_follow/starts.pkl", "rb"))
+    ids.insert(0, 0)
     
     x_shape = torch_data_train.images[0].shape
-    y_dim = torch_data_train.actions.shape[1] - 1
+    y_dim = torch_data_train.actions.shape[1]
     
     model = get_model(x_shape, y_dim)
     
     checkpoint = torch.load("diff_weights/trained_model.pt", weights_only=True)
     model.load_state_dict(checkpoint)
     
-    for i in tqdm(range(24)):
-        x_eval = (
-            torch.Tensor(torch_data_train.images[i])
-            .type(torch.FloatTensor)
-            .to(device)
-        )
+    for n in range(1,2):
+        preds = []
+        for i in tqdm(range(sum(ids[:n]), sum(ids[:n+1]))):
+            x_eval = (
+                torch.Tensor(torch_data_train.images[i])
+                .type(torch.FloatTensor)
+                .to(device)
+            )
+            x_eval_ = x_eval.repeat(1, 1, 1, 1)
+            preds.append(np.squeeze(predict(model, x_eval_)))
+
+        ppts = np.array(preds)
+        pptss = np.cumsum(ppts, axis=0) * 32
         
-        x_eval_ = x_eval.repeat(100, 1, 1, 1)
-        pred = predict(model, x_eval_)
-        
-        pred = pred.to_device('cpu') * 32
-        x_eval = x_eval.detach().cpu()
-        
-        plt.figure()
-        plt.imshow(x_eval)
-        plt.scatter(pred[:, 0], pred[:, 1])
-        plt.savefig(os.path.join(save_dir, f'plot{i}.png'), bbox_inches = 'tight')
+        plt.figure(figsize=(8,4))
+        plt.subplot(1,2,1)
+        plt.scatter(pptss[:, 0], pptss[:, 1])
+        ax = plt.gca()
+        ax.set_ylim(ax.get_ylim()[::-1])
+        plt.title("Predicted actions")
+        plt.subplot(1,2,2)
+        plt.imshow(torch_data_train.images[sum(ids[:n])])
+        plt.title("Path")
+        plt.savefig(os.path.join(save_dir, f'plot{n}.png'), bbox_inches = 'tight')
+        # plt.show()
         
 if __name__ == "__main__":
     eval()

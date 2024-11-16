@@ -4,8 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 import pandas as pd
 from tqdm.contrib import tenumerate
-import os
-import pickle
+
 
 def gen_points(image_path):
     # Load the image
