@@ -119,7 +119,7 @@ def eval():
     checkpoint = torch.load("diff_weights/trained_model.pt", weights_only=True)
     model.load_state_dict(checkpoint)
     
-    for n in range(1,2):
+    for n in range(1,50):
         preds = []
         for i in tqdm(range(sum(ids[:n]), sum(ids[:n+1]))):
             x_eval = (
